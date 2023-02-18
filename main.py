@@ -1,7 +1,12 @@
 from fastapi import FastAPI
+from mysqlx import Session
 from pydantic import BaseModel
-from fastapi import Request, FastAPI
+from fastapi import Request, FastAPI, Depends
 import redis 
+
+import schema
+from database import SessionLocal, engine
+import model
 
 class user(BaseModel):
     user_id: str
@@ -9,6 +14,15 @@ class user(BaseModel):
 
 class Item(BaseModel):
     job_id: str
+
+def get_database_session():
+    try:
+        db = SessionLocal()
+        yield db
+    finally:
+        db.close()
+
+model.Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI()
@@ -23,7 +37,37 @@ async def create_item(item: Item):
 
 
 @app.post("/{job_id}")
-async def read_item(job_id, request: Request):
+async def read_item(job_id, request: Request, db:Session=Depends(get_database_session)):
     print(job_id)
     dict = await request.json()
-    print(dict[0])
+    print(dict)
+
+
+# import os
+# import redis
+
+# # Establish a connection to Redis
+# r = redis.Redis(host='localhost', port=6379, db=0)
+
+# # Specify the name of the Redis queue to read from
+# queue_name = 'file_paths_queue'
+
+# # Create a loop to continuously read messages from the Redis queue
+# while True:
+#     # Read a message from the Redis queue
+#     message = r.brpop(queue_name)
+
+#     # If the queue is empty, break the loop
+#     if message is None:
+#         break
+
+#     # Get the path to the file from the message content
+#     file_path = message[1].decode('utf-8')
+
+#     # Read the contents of the file
+#     with open(file_path, 'r') as f:
+#         contents = f.read()
+
+#     # Process the contents of the file as needed
+#     # ...
+
