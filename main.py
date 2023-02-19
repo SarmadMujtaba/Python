@@ -1,20 +1,18 @@
 from fastapi import FastAPI
-from mysqlx import Session
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from fastapi import Request, FastAPI, Depends
 import redis 
 
-import schema
+from schema import DataSchema
 from database import SessionLocal, engine
 import model
 
-class user(BaseModel):
-    user_id: str
-   
+# Redis Code
+redis_client = redis.Redis(host='localhost', port=6379, db=0)
+queue_name = 'users'
 
-class Item(BaseModel):
-    job_id: str
-
+# creating db session
 def get_database_session():
     try:
         db = SessionLocal()
@@ -28,19 +26,35 @@ model.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
 
-@app.post("/")
-async def create_item(item: Item):
-    with redis.Redis() as redis_client:
-        redis_client.lpush("queue", 1)
-    print(item.job_id)
-    return item.job_id
+# @app.post("/")
+# async def create_item(item: Item):
+#     with redis.Redis() as redis_client:
+#         redis_client.lpush("queue", 1)
+#     print(item.job_id)
+#     return item.job_id
 
 
 @app.post("/{job_id}")
 async def read_item(job_id, request: Request, db:Session=Depends(get_database_session)):
     print(job_id)
-    dict = await request.json()
-    print(dict)
+    redultList = await request.json()
+    print(len(redultList))
+    
+    # Adding record to database
+    for x in redultList:
+        print(x["user_id"])
+        record = model.Queue()
+        record.job_id = job_id
+        record.user_id = x["user_id"]
+        db.add(record)
+        db.commit()
+    
+    # Adding users to queue
+    for x in redultList:
+        redis_client.lpush(queue_name, x["user_id"])
+    
+    # resultList = list(dict.values())
+    # print(resultList)
 
 
 # import os
