@@ -8,4 +8,10 @@ class Queue(Base):
     id = Column(Integer, primary_key=True, index=True)
     job_id = Column(String(100))
     user_id = Column(String(100))
+
+class Skills(Base):
+    __tablename__ = "skills"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(100))
+    skill = Column(String(100))
  

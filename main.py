@@ -41,37 +41,36 @@ async def read_item(request: Request, db:Session=Depends(get_database_session)):
     file_name: str
     # print(user_id)
 
- 
-
+    # getting the matched file name
     for file in os.listdir('/home/sarmad/Desktop/FYP_Resumes'):
         if fnmatch.fnmatch(file, user_id + '_*.pdf'):
             print(file)
             file_name = file
 
+    # reading matched file
     reader = PdfReader('/home/sarmad/Desktop/FYP_Resumes/' + file_name)
     text = ""
     for page in reader.pages:
         text += page.extract_text() + "\n"
     text = text.replace("  ", " ")
-    print(text)
+    text = text.lower()
+    # print(text)
 
+    # Skills Extraction using spacy
     nlp = spacy.load('en_core_web_sm')
     matcher = PhraseMatcher(nlp.vocab)
     nlp_text = nlp(text)
-    # noun_chunks = nlp_text.noun_chunks
-    # # removing stop words and implementing word tokenization
-    # tokens = [token.text for token in nlp_text if not token.is_stop]
     
-    # reading the csv file
+    # reading the csv files
     data = pd.read_csv("/home/sarmad/Go_Practice/PythonService/skills.csv") 
+    data2 = pd.read_csv("/home/sarmad/Go_Practice/PythonService/PhraseSkills.csv") 
 
-    terms1 = pd.read_csv("/home/sarmad/Go_Practice/PythonService/PhraseSkills.csv") 
-    terms = list(terms1.columns.values)
-    # extract values
+    # extract values to lists
+    phraseSkills = list(data2.columns.values)
     skills = list(data.columns.values)
 
-    print(skills)
-    print(terms)
+    # print(skills)
+    # print(phraseSkills)
     
     skillset = []
     
@@ -80,26 +79,26 @@ async def read_item(request: Request, db:Session=Depends(get_database_session)):
         if token in nlp_text.text:
             skillset.append(token)
     
-    patterns = [nlp.make_doc(text) for text in terms]
-    matcher.add("TerminologyList", None, *patterns)
+
     # check for bi-grams and tri-grams (example: machine learning)
+    patterns = [nlp.make_doc(text) for text in phraseSkills]
+    matcher.add("TerminologyList", None, *patterns)
     matches = matcher(nlp_text)
+   
     for match_id, start, end in matches:
         span = nlp_text[start:end]
-        print(span.text)
         if span.text not in skillset:
             skillset.append(span.text)
 
+    # Insert data in database
+    for x in skillset:
+        record = model.Skills()
+        record.user_id = user_id
+        record.skill = x
+        db.add(record)
+        db.commit()
+
     print(skillset)
-    # print(noun_chunks)
-
-
-    # data = ResumeParser('/home/sarmad/Desktop/FYP_Resumes/' + file_name).get_extracted_data()
-    
-
-    # # data = resumeparse.read_file('/home/sarmad/Desktop/FYP_Resumes/' + file)
-    # print(data)
-            
 
     
 
