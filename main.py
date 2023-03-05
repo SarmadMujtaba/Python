@@ -15,6 +15,8 @@ from spacy.matcher import PhraseMatcher
 from schema import DataSchema
 from database import SessionLocal, engine
 import model
+import worker
+import asyncio
 
 # Redis Code
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
@@ -106,19 +108,29 @@ async def read_item(request: Request, db:Session=Depends(get_database_session)):
 @app.post("/{job_id}")
 async def read_item(job_id, request: Request, db:Session=Depends(get_database_session)):
     print(job_id)
-    redultList = await request.json()
-    print(len(redultList))
+    # users = []
+    resultList = await request.json()
+    print(resultList)
     
     # Adding record to database
-    for x in redultList:
-        print(x["user_id"])
+    for x in resultList["Users"]:
+    #     print(x)
         record = model.Queue()
         record.job_id = job_id
-        record.user_id = x["user_id"]
+        record.user_id = x
+        db.add(record)
+        db.commit()
+
+    for x in resultList["RequiredSkills"]:
+    #     print(x)
+        record = model.reqSkills()
+        record.job_id = job_id
+        record.skill= x
         db.add(record)
         db.commit()
     
-    # Adding users to queue
-    for x in redultList:
-        redis_client.lpush(queue_name, x["user_id"])
-    
+    # # Adding users to queue
+    for x in resultList["Users"]:
+        redis_client.lpush(queue_name, x)
+
+    await worker.shortlist_worker()
