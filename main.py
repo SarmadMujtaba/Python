@@ -15,7 +15,7 @@ from spacy.matcher import PhraseMatcher
 from schema import DataSchema
 from database import SessionLocal, engine
 import model
-import worker
+
 import asyncio
 
 # Redis Code
@@ -133,4 +133,5 @@ async def read_item(job_id, request: Request, db:Session=Depends(get_database_se
     for x in resultList["Users"]:
         redis_client.lpush(queue_name, x)
 
+    import worker
     await worker.shortlist_worker()
