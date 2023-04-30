@@ -20,3 +20,4 @@ ENV PORT=8000
 EXPOSE 8000
 
 CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+# sudo docker run --net=host --mount type=bind,source=/home/sarmad/Desktop/FYP_Resumes,target=/app/Resumes -u $(id -u $USER):$(id -g $USER) -p 8000:8000 fastapi
