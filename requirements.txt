@@ -1,0 +1,7 @@
+fastapi==0.95.1
+pandas==1.5.3
+pydantic==1.10.5
+PyPDF2==3.0.1
+redis==4.5.1
+spacy==2.3.9
+SQLAlchemy==2.0.4

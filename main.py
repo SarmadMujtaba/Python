@@ -1,23 +1,18 @@
 from fastapi import FastAPI
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
 from fastapi import Request, FastAPI, Depends
 import redis 
 import fnmatch
 import os
-from pyresparser import ResumeParser
-from resume_parser import resumeparse
+
 import pandas as pd
 from PyPDF2 import PdfReader
 import spacy
 from spacy.matcher import PhraseMatcher
 from fastapi import FastAPI, HTTPException
 
-from schema import DataSchema
 from database import SessionLocal, engine
 import model
-
-import asyncio
 
 # Redis Code
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
@@ -44,14 +39,14 @@ async def read_item(request: Request, db:Session=Depends(get_database_session)):
     file_name: str
     # print(user_id)
 
-    # getting the matched file name
-    for file in os.listdir('/home/sarmad/Desktop/FYP_Resumes'):
+    # getting the matched file name (without docker '/home/sarmad/Desktop/FYP_Resumes')
+    for file in os.listdir('/app/Resumes'):
         if fnmatch.fnmatch(file, user_id + '_*.pdf'):
             print(file)
             file_name = file
 
-    # reading matched file
-    reader = PdfReader('/home/sarmad/Desktop/FYP_Resumes/' + file_name)
+    # reading matched file (without docker '/home/sarmad/Desktop/FYP_Resumes/')
+    reader = PdfReader('/app/Resumes/' + file_name)
     text = ""
     for page in reader.pages:
         text += page.extract_text() + "\n"
@@ -64,9 +59,9 @@ async def read_item(request: Request, db:Session=Depends(get_database_session)):
     matcher = PhraseMatcher(nlp.vocab)
     nlp_text = nlp(text)
     
-    # reading the csv files
-    data = pd.read_csv("/home/sarmad/Go_Practice/PythonService/skills.csv") 
-    data2 = pd.read_csv("/home/sarmad/Go_Practice/PythonService/PhraseSkills.csv") 
+    # reading the csv files (without docker '/home/sarmad/Go_Practice/PythonService/skills.csv')
+    data = pd.read_csv("/app/skills.csv") 
+    data2 = pd.read_csv("/app/PhraseSkills.csv") 
 
     # extract values to lists
     phraseSkills = list(data2.columns.values)
