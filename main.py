@@ -11,6 +11,7 @@ import pandas as pd
 from PyPDF2 import PdfReader
 import spacy
 from spacy.matcher import PhraseMatcher
+from fastapi import FastAPI, HTTPException
 
 from schema import DataSchema
 from database import SessionLocal, engine
@@ -104,7 +105,7 @@ async def read_item(request: Request, db:Session=Depends(get_database_session)):
 
     
 
-
+#  end point for shortlisting jobs 
 @app.post("/{job_id}")
 async def read_item(job_id, request: Request, db:Session=Depends(get_database_session)):
     print(job_id)
@@ -118,6 +119,7 @@ async def read_item(job_id, request: Request, db:Session=Depends(get_database_se
         record = model.Queue()
         record.job_id = job_id
         record.user_id = x
+        record.status = "pending"
         db.add(record)
         db.commit()
 
@@ -135,3 +137,42 @@ async def read_item(job_id, request: Request, db:Session=Depends(get_database_se
 
     import worker
     await worker.shortlist_worker()
+
+
+
+# endpoint for adding user's skills in to db (for users without uploading resume)
+@app.post("/skills/{user_id}")
+async def add_skill(user_id, request: Request, db:Session=Depends(get_database_session)):
+    print(user_id)
+    # users = []
+    resultList = await request.json()
+    print(resultList)
+    
+    # Adding record to database
+    for x in resultList:
+    #     print(x)
+        record = model.Skills()
+        record.user_id = user_id
+        record.skill = x
+        db.add(record)
+        db.commit()
+
+
+@app.get("/status/{job_id}")
+async def status(job_id, request: Request, db:Session=Depends(get_database_session)):
+
+    list = db.query(model.Queue).filter(model.Queue.job_id == job_id).all()
+    print(len(list))
+    
+    if len(list) == 0:
+        raise HTTPException(status_code=404, detail="job not found")
+
+    list = db.query(model.Queue).filter(model.Queue.job_id == job_id , model.Queue.status == 'pending').all()
+    print(len(list))
+
+    if len(list) != 0:
+        raise HTTPException(status_code=425, detail="still shortlisting...")
+    
+    list = db.query(model.Queue).filter(model.Queue.job_id == job_id , model.Queue.status == 'success').all()
+    return list
+   
