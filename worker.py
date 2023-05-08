@@ -4,12 +4,13 @@ import time
 import main
 import model
 from sqlalchemy.orm import Session
-
+import httpx
 
 redis_client = redis.Redis(host='redis', port=6379, db=0)
 queue_name = 'users'
 
 async def shortlist_worker(db:Session = next(main.get_database_session())):
+    url = "http://host.docker.internal:5020/application/update"
 
     while True:
         skillList = []
@@ -55,11 +56,29 @@ async def shortlist_worker(db:Session = next(main.get_database_session())):
             print("Success")
             db.query(model.Queue).filter(model.Queue.user_id == user , model.Queue.job_id == data.job_id).update({model.Queue.status: 'success'}, synchronize_session=False)
             db.commit()
+            # sending status back to frontend
+            data = {
+                "user_id": user.decode(),
+                "job_id": data.job_id,
+                "status": "Shortlisted"
+            }
+            headers = {'Content-Type': 'application/json'}
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=data, headers=headers)
             count == 0
         else:
             print("Fail")
             db.query(model.Queue).filter(model.Queue.user_id == user , model.Queue.job_id == data.job_id).update({model.Queue.status: 'fail'}, synchronize_session=False)
             db.commit()
+             # sending status back to frontend
+            data = {
+                "user_id": user.decode(),
+                "job_id": data.job_id,
+                "status": "Rejected"
+            }
+            headers = {'Content-Type': 'application/json'}
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=data, headers=headers)
             count == 0
 
 
