@@ -6,6 +6,7 @@ import model
 from sqlalchemy.orm import Session
 import httpx
 
+
 redis_client = redis.Redis(host='redis', port=6379, db=0)
 queue_name = 'users'
 
@@ -17,13 +18,18 @@ async def shortlist_worker(db:Session = next(main.get_database_session())):
         reqSkillList = []
         count = 0 
 
-        user = redis_client.rpop(queue_name)
+        result = redis_client.blpop(queue_name)
+        job_id, user_id = result[1].decode().split(":")
 
-        if user is None:
+
+        if user_id is None or job_id is None:
             return
+        
+        print(user_id)
+        print(job_id)
 
         # getting user's data
-        data = db.query(model.Queue).filter(model.Queue.user_id == user).first()
+        data = db.query(model.Queue).filter(model.Queue.user_id == user_id, model.Queue.job_id == job_id).first()
 
         # getting job_id in which user has applied for and getting its required skills
         data2 = db.query(model.reqSkills).filter(model.reqSkills.job_id == data.job_id).all()
@@ -37,7 +43,7 @@ async def shortlist_worker(db:Session = next(main.get_database_session())):
         print(reqSkillList)
 
         # getting all the skills of the user
-        data3 = db.query(model.Skills).filter(model.Skills.user_id == user).all()
+        data3 = db.query(model.Skills).filter(model.Skills.user_id == user_id).all()
         for i in range(len(data3)):
             if data3[i].skill not in skillList:
                 skillList.append(data3[i].skill)
@@ -54,11 +60,11 @@ async def shortlist_worker(db:Session = next(main.get_database_session())):
         # updating status in database 
         if count >= (int(0.7 * reqSkills)):
             print("Success")
-            db.query(model.Queue).filter(model.Queue.user_id == user , model.Queue.job_id == data.job_id).update({model.Queue.status: 'success'}, synchronize_session=False)
+            db.query(model.Queue).filter(model.Queue.user_id == user_id , model.Queue.job_id == data.job_id).update({model.Queue.status: 'success'}, synchronize_session=False)
             db.commit()
             # sending status back to frontend
             data = {
-                "user_id": user.decode(),
+                "user_id": user_id,
                 "job_id": data.job_id,
                 "status": "Shortlisted"
             }
@@ -68,11 +74,11 @@ async def shortlist_worker(db:Session = next(main.get_database_session())):
             count == 0
         else:
             print("Fail")
-            db.query(model.Queue).filter(model.Queue.user_id == user , model.Queue.job_id == data.job_id).update({model.Queue.status: 'fail'}, synchronize_session=False)
+            db.query(model.Queue).filter(model.Queue.user_id == user_id , model.Queue.job_id == data.job_id).update({model.Queue.status: 'fail'}, synchronize_session=False)
             db.commit()
              # sending status back to frontend
             data = {
-                "user_id": user.decode(),
+                "user_id": user_id,
                 "job_id": data.job_id,
                 "status": "Rejected"
             }

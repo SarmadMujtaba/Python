@@ -4,6 +4,7 @@ from fastapi import Request, FastAPI, Depends
 import redis 
 import fnmatch
 import os
+# import globals
 
 import pandas as pd
 from PyPDF2 import PdfReader
@@ -104,6 +105,7 @@ async def read_item(request: Request, db:Session=Depends(get_database_session)):
 @app.post("/{job_id}")
 async def read_item(job_id, request: Request, db:Session=Depends(get_database_session)):
     print(job_id)
+    # globals.JOB = job_id
     # users = []
     resultList = await request.json()
     print(resultList)
@@ -128,7 +130,8 @@ async def read_item(job_id, request: Request, db:Session=Depends(get_database_se
     
     # # Adding users to queue
     for x in resultList["Users"]:
-        redis_client.lpush(queue_name, x)
+        redis_client.lpush(queue_name, job_id + ":" + x)
+
 
     import worker
     await worker.shortlist_worker()
@@ -144,13 +147,12 @@ async def add_skill(user_id, request: Request, db:Session=Depends(get_database_s
     print(resultList)
     
     # Adding record to database
-    for x in resultList:
-    #     print(x)
-        record = model.Skills()
-        record.user_id = user_id
-        record.skill = x
-        db.add(record)
-        db.commit()
+
+    record = model.Skills()
+    record.user_id = user_id
+    record.skill = resultList
+    db.add(record)
+    db.commit()
 
 
 @app.get("/status/{job_id}")
