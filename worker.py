@@ -18,13 +18,17 @@ async def shortlist_worker(db:Session = next(main.get_database_session())):
         reqSkillList = []
         count = 0 
 
-        result = redis_client.blpop(queue_name)
-        job_id, user_id = result[1].decode().split(":")
+        result = redis_client.rpop(queue_name)
 
-
-        if user_id is None or job_id is None:
+        if result is None:
             return
+
+        res = result.decode()
+        values = res.split(':')
+        job_id, user_id = values[0], values[1]
+
         
+        print(result)
         print(user_id)
         print(job_id)
 
