@@ -147,12 +147,12 @@ async def add_skill(user_id, request: Request, db:Session=Depends(get_database_s
     print(resultList)
     
     # Adding record to database
-
-    record = model.Skills()
-    record.user_id = user_id
-    record.skill = resultList
-    db.add(record)
-    db.commit()
+    for x in resultList:
+        record = model.Skills()
+        record.user_id = user_id
+        record.skill = x
+        db.add(record)
+        db.commit()
 
 
 @app.get("/status/{job_id}")
