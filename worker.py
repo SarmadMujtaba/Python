@@ -36,7 +36,7 @@ async def shortlist_worker(db:Session = next(main.get_database_session())):
         data = db.query(model.Queue).filter(model.Queue.user_id == user_id, model.Queue.job_id == job_id).first()
 
         # getting job_id in which user has applied for and getting its required skills
-        data2 = db.query(model.reqSkills).filter(model.reqSkills.job_id == data.job_id).all()
+        data2 = db.query(model.reqSkills).filter(model.reqSkills.job_id == job_id).all()
         for i in range(len(data2)):
             if data2[i].skill not in reqSkillList:
                 reqSkillList.append(data2[i].skill)
@@ -64,7 +64,7 @@ async def shortlist_worker(db:Session = next(main.get_database_session())):
         # updating status in database 
         if count >= (int(0.7 * reqSkills)):
             print("Success")
-            db.query(model.Queue).filter(model.Queue.user_id == user_id , model.Queue.job_id == data.job_id).update({model.Queue.status: 'success'}, synchronize_session=False)
+            db.query(model.Queue).filter(model.Queue.user_id == user_id , model.Queue.job_id == job_id).update({model.Queue.status: 'success'}, synchronize_session=False)
             db.commit()
             # sending status back to frontend
             data = {
