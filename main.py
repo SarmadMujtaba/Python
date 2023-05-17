@@ -145,6 +145,8 @@ async def add_skill(user_id, request: Request, db:Session=Depends(get_database_s
     # users = []
     resultList = await request.json()
     print(resultList)
+    if not resultList:
+        return
     
     # Adding record to database
     for x in resultList:
