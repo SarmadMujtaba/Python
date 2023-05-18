@@ -11,7 +11,7 @@ redis_client = redis.Redis(host='redis', port=6379, db=0)
 queue_name = 'users'
 
 async def shortlist_worker(db:Session = next(main.get_database_session())):
-    url = "http://host.docker.internal:5020/application/update"
+    url = "http://34.93.204.130:5020/application/update"
 
     while True:
         skillList = []
