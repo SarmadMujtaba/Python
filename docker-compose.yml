@@ -44,6 +44,6 @@ services:
  
     volumes:
     # bind mount for file uploads - folder on host : folder on container
-      - /home/sarmad/Desktop/FYP_Resumes:/app/Resumes
+    - /home/g191387/Resumes:/app/Resumes
 
 
