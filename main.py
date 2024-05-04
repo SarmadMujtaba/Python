@@ -1,25 +1,22 @@
 from fastapi import FastAPI
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
 from fastapi import Request, FastAPI, Depends
 import redis 
 import fnmatch
 import os
-from pyresparser import ResumeParser
-from resume_parser import resumeparse
+# import globals
+
 import pandas as pd
 from PyPDF2 import PdfReader
 import spacy
 from spacy.matcher import PhraseMatcher
+from fastapi import FastAPI, HTTPException
 
-from schema import DataSchema
 from database import SessionLocal, engine
 import model
-import worker
-import asyncio
 
 # Redis Code
-redis_client = redis.Redis(host='localhost', port=6379, db=0)
+redis_client = redis.Redis(host='redis', port=6379, db=0)
 queue_name = 'users'
 
 # Creating db session
@@ -43,14 +40,14 @@ async def read_item(request: Request, db:Session=Depends(get_database_session)):
     file_name: str
     # print(user_id)
 
-    # getting the matched file name
-    for file in os.listdir('/home/sarmad/Desktop/FYP_Resumes'):
+    # getting the matched file name (without docker '/home/sarmad/Desktop/FYP_Resumes')
+    for file in os.listdir('/app/Resumes'):
         if fnmatch.fnmatch(file, user_id + '_*.pdf'):
             print(file)
             file_name = file
 
-    # reading matched file
-    reader = PdfReader('/home/sarmad/Desktop/FYP_Resumes/' + file_name)
+    # reading matched file (without docker '/home/sarmad/Desktop/FYP_Resumes/')
+    reader = PdfReader('/app/Resumes/' + file_name)
     text = ""
     for page in reader.pages:
         text += page.extract_text() + "\n"
@@ -63,9 +60,9 @@ async def read_item(request: Request, db:Session=Depends(get_database_session)):
     matcher = PhraseMatcher(nlp.vocab)
     nlp_text = nlp(text)
     
-    # reading the csv files
-    data = pd.read_csv("/home/sarmad/Go_Practice/PythonService/skills.csv") 
-    data2 = pd.read_csv("/home/sarmad/Go_Practice/PythonService/PhraseSkills.csv") 
+    # reading the csv files (without docker '/home/sarmad/Go_Practice/PythonService/skills.csv')
+    data = pd.read_csv("/app/skills.csv") 
+    data2 = pd.read_csv("/app/PhraseSkills.csv") 
 
     # extract values to lists
     phraseSkills = list(data2.columns.values)
@@ -104,10 +101,11 @@ async def read_item(request: Request, db:Session=Depends(get_database_session)):
 
     
 
-
+#  end point for shortlisting jobs 
 @app.post("/{job_id}")
 async def read_item(job_id, request: Request, db:Session=Depends(get_database_session)):
     print(job_id)
+    # globals.JOB = job_id
     # users = []
     resultList = await request.json()
     print(resultList)
@@ -118,6 +116,7 @@ async def read_item(job_id, request: Request, db:Session=Depends(get_database_se
         record = model.Queue()
         record.job_id = job_id
         record.user_id = x
+        record.status = "pending"
         db.add(record)
         db.commit()
 
@@ -131,6 +130,48 @@ async def read_item(job_id, request: Request, db:Session=Depends(get_database_se
     
     # # Adding users to queue
     for x in resultList["Users"]:
-        redis_client.lpush(queue_name, x)
+        redis_client.lpush(queue_name, job_id + ":" + x)
 
+
+    import worker
     await worker.shortlist_worker()
+
+
+
+# endpoint for adding user's skills in to db (for users without uploading resume)
+@app.post("/skills/{user_id}")
+async def add_skill(user_id, request: Request, db:Session=Depends(get_database_session)):
+    print(user_id)
+    # users = []
+    resultList = await request.json()
+    print(resultList)
+    if not resultList:
+        return
+    
+    # Adding record to database
+    for x in resultList:
+        record = model.Skills()
+        record.user_id = user_id
+        record.skill = x
+        db.add(record)
+        db.commit()
+
+
+@app.get("/status/{job_id}")
+async def status(job_id, request: Request, db:Session=Depends(get_database_session)):
+
+    list = db.query(model.Queue).filter(model.Queue.job_id == job_id).all()
+    print(len(list))
+    
+    if len(list) == 0:
+        raise HTTPException(status_code=404, detail="job not found")
+
+    list = db.query(model.Queue).filter(model.Queue.job_id == job_id , model.Queue.status == 'pending').all()
+    print(len(list))
+
+    if len(list) != 0:
+        raise HTTPException(status_code=425, detail="still shortlisting...")
+    
+    list = db.query(model.Queue).filter(model.Queue.job_id == job_id , model.Queue.status == 'success').all()
+    return list
+   
